@@ -1,0 +1,169 @@
+{
+  "base_currency": "USD",
+  "assets": [
+    {
+      "id": "CASH-USD",
+      "asset_class": "CASH",
+      "currency": "USD",
+      "market_value": 40000000,
+      "cost_bps": 45
+    },
+    {
+      "id": "CASH-EUR",
+      "asset_class": "CASH",
+      "currency": "EUR",
+      "market_value": 15000000,
+      "cost_bps": 40
+    },
+    {
+      "id": "UST-2Y",
+      "asset_class": "GOVT",
+      "currency": "USD",
+      "market_value": 30000000,
+      "cost_bps": 25,
+      "issuer": "US Treasury",
+      "rating": "AA+"
+    },
+    {
+      "id": "UST-10Y",
+      "asset_class": "GOVT",
+      "currency": "USD",
+      "market_value": 35000000,
+      "cost_bps": 20,
+      "issuer": "US Treasury",
+      "rating": "AA+"
+    },
+    {
+      "id": "BUND-5Y",
+      "asset_class": "GOVT",
+      "currency": "EUR",
+      "market_value": 30000000,
+      "cost_bps": 15,
+      "issuer": "Germany",
+      "rating": "AAA"
+    },
+    {
+      "id": "BTP-7Y",
+      "asset_class": "GOVT",
+      "currency": "EUR",
+      "market_value": 20000000,
+      "cost_bps": 5,
+      "issuer": "Italy",
+      "rating": "BBB"
+    },
+    {
+      "id": "CORP-AAPL-2030",
+      "asset_class": "CORP",
+      "currency": "USD",
+      "market_value": 25000000,
+      "cost_bps": 10,
+      "issuer": "Apple",
+      "rating": "AA+"
+    },
+    {
+      "id": "CORP-F-2029",
+      "asset_class": "CORP",
+      "currency": "USD",
+      "market_value": 18000000,
+      "cost_bps": 6,
+      "issuer": "Ford",
+      "rating": "BBB-"
+    },
+    {
+      "id": "EQ-SPX-BASKET",
+      "asset_class": "EQUITY",
+      "currency": "USD",
+      "market_value": 50000000,
+      "cost_bps": 4
+    },
+    {
+      "id": "EQ-SX5E-BASKET",
+      "asset_class": "EQUITY",
+      "currency": "EUR",
+      "market_value": 30000000,
+      "cost_bps": 3
+    }
+  ],
+  "requirements": [
+    {
+      "id": "CCP-LCH-IM",
+      "amount": 70000000,
+      "currency": "USD",
+      "eligibility": [
+        {
+          "asset_class": "CASH",
+          "haircut": 0.0,
+          "currencies": [
+            "USD",
+            "EUR"
+          ]
+        },
+        {
+          "asset_class": "GOVT",
+          "haircut": 0.02,
+          "min_rating": "AA-"
+        }
+      ]
+    },
+    {
+      "id": "CSA-BANK-A",
+      "amount": 45000000,
+      "currency": "USD",
+      "fx_haircut": 0.08,
+      "eligibility": [
+        {
+          "asset_class": "CASH",
+          "haircut": 0.0
+        },
+        {
+          "asset_class": "GOVT",
+          "haircut": 0.03,
+          "min_rating": "BBB"
+        },
+        {
+          "asset_class": "CORP",
+          "haircut": 0.1,
+          "min_rating": "A-"
+        }
+      ],
+      "concentration_limits": [
+        {
+          "match": {
+            "asset_class": "CORP"
+          },
+          "max_share": 0.25
+        }
+      ]
+    },
+    {
+      "id": "TRIPARTY-REPO",
+      "amount": 80000000,
+      "currency": "USD",
+      "fx_haircut": 0.0,
+      "max_share_per_issuer": 0.4,
+      "eligibility": [
+        {
+          "asset_class": "GOVT",
+          "haircut": 0.02
+        },
+        {
+          "asset_class": "CORP",
+          "haircut": 0.08,
+          "min_rating": "BBB-"
+        },
+        {
+          "asset_class": "EQUITY",
+          "haircut": 0.15
+        }
+      ],
+      "concentration_limits": [
+        {
+          "match": {
+            "asset_class": "EQUITY"
+          },
+          "max_share": 0.7
+        }
+      ]
+    }
+  ]
+}
