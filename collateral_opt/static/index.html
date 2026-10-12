@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Collateral Optimiser</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface-1: #fcfcfb;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11,11,11,0.10);
+  --track: #f0efec;
+  --success-text: #006300;
+  --critical: #d03b3b;
+  --good: #0ca30c;
+  --accent: #2a78d6;
+  --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a; --series-4: #eda100;
+  --series-5: #e87ba4; --series-6: #008300; --series-7: #6250d6; --series-8: #e34948;
+  --other: #898781;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface-1: #1a1a19;
+    --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10); --track: #2c2c2a;
+    --success-text: #0ca30c; --accent: #3987e5;
+    --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500;
+    --series-5: #d55181; --series-6: #008300; --series-7: #9085e9; --series-8: #e66767;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface-1: #1a1a19;
+  --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10); --track: #2c2c2a;
+  --success-text: #0ca30c; --accent: #3987e5;
+  --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500;
+  --series-5: #d55181; --series-6: #008300; --series-7: #9085e9; --series-8: #e66767;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--page); color: var(--text-primary);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 64px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 24px; margin-bottom: 16px; }
+h1 { font-size: 22px; font-weight: 600; margin: 0; }
+h2 { font-size: 15px; font-weight: 600; margin: 0 0 2px; }
+.sub { color: var(--text-secondary); margin: 0; }
+.muted { color: var(--text-muted); }
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; align-items: center; }
+button, .filebtn {
+  font: inherit; color: var(--text-primary); background: var(--surface-1);
+  border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; cursor: pointer;
+}
+button:hover, .filebtn:hover { background: var(--track); }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.primary:hover { filter: brightness(1.08); }
+.filebtn input { display: none; }
+#status { margin-left: auto; color: var(--text-secondary); font-size: 13px; }
+
+.banner { display: none; border: 1px solid var(--critical); color: var(--critical); background: var(--surface-1); border-radius: 8px; padding: 10px 12px; margin-bottom: 16px; }
+.banner.show { display: block; }
+
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.tile, .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+.tile .label { color: var(--text-secondary); font-size: 13px; }
+.tile .value { font-size: 28px; font-weight: 600; margin-top: 4px; }
+.tile.hero .value { font-size: 48px; line-height: 1.1; }
+.tile .delta { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+.delta.good { color: var(--success-text); }
+.statusline { display: flex; align-items: center; gap: 8px; }
+.statusline svg { flex: none; }
+
+.grid2 { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 16px; align-items: start; }
+@media (min-width: 960px) { .grid2 { grid-template-columns: 1fr 1fr; } }
+.card { min-width: 0; }
+.card-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 12px; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--text-secondary); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.legend .marker { width: 2px; height: 12px; border-radius: 0; background: var(--text-primary); }
+
+svg.chart { display: block; width: 100%; overflow: visible; }
+svg.chart text { font: 12px system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--text-secondary); }
+svg.chart text.ink { fill: var(--text-primary); }
+svg.chart .tick { font-variant-numeric: tabular-nums; fill: var(--text-muted); }
+.seg { cursor: default; }
+.seg:hover { filter: brightness(1.1); }
+
+#tooltip {
+  position: fixed; pointer-events: none; z-index: 10; display: none; max-width: 280px;
+  background: var(--surface-1); color: var(--text-primary); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+}
+#tooltip b { font-weight: 600; }
+#tooltip .row { display: flex; justify-content: space-between; gap: 16px; font-variant-numeric: tabular-nums; }
+
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--grid); text-align: left; white-space: nowrap; }
+th { color: var(--text-secondary); font-weight: 500; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td input {
+  font: inherit; color: inherit; background: transparent; border: 1px solid transparent; border-radius: 6px;
+  padding: 2px 6px; width: 120px; text-align: right; font-variant-numeric: tabular-nums;
+}
+td input:hover { border-color: var(--border); }
+td input:focus { outline: none; border-color: var(--accent); background: var(--surface-1); }
+td input.short { width: 70px; }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; }
+details summary { cursor: pointer; color: var(--text-secondary); margin: 8px 0; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>Collateral optimiser</h1>
+      <p class="sub">Allocate inventory to margin requirements at minimum annual opportunity cost.</p>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <button class="primary" id="run">Optimise</button>
+    <button id="load-sample">Load sample</button>
+    <label class="filebtn">Upload portfolio (JSON)<input type="file" id="upload-json" accept=".json,application/json"></label>
+    <label class="filebtn">Upload inventory (CSV)<input type="file" id="upload-csv" accept=".csv,text/csv"></label>
+    <button id="dl-csv">Download allocation (CSV)</button>
+    <button id="dl-json">Download portfolio (JSON)</button>
+    <span id="status"></span>
+  </div>
+
+  <div class="banner" id="error"></div>
+
+  <section class="tiles" id="tiles"></section>
+
+  <section class="grid2">
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <h2>Collateral by requirement</h2>
+          <p class="sub muted">Post-haircut value posted, by asset class</p>
+        </div>
+        <div class="legend" id="legend-req"></div>
+      </div>
+      <div id="chart-req"></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <h2>Inventory utilisation</h2>
+          <p class="sub muted">Market value pledged out of each position</p>
+        </div>
+      </div>
+      <div id="chart-inv"></div>
+    </div>
+  </section>
+
+  <section class="card" style="margin-bottom:16px">
+    <div class="card-head"><div><h2>Allocation</h2><p class="sub muted">Optimised pledges</p></div></div>
+    <div class="tablewrap"><table id="tbl-alloc"></table></div>
+  </section>
+
+  <section class="grid2">
+    <div class="card">
+      <div class="card-head"><div><h2>Inventory</h2><p class="sub muted">Edit market value or cost to re-optimise</p></div></div>
+      <div class="tablewrap"><table id="tbl-assets"></table></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div><h2>Requirements</h2><p class="sub muted">Edit amounts to re-optimise</p></div></div>
+      <div class="tablewrap"><table id="tbl-reqs"></table></div>
+      <details><summary>Eligibility schedules</summary><div class="tablewrap"><table id="tbl-elig"></table></div></details>
+    </div>
+  </section>
+</main>
+<div id="tooltip"></div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+let portfolio = null;
+let results = null;
+const classSlot = new Map();   // asset class -> palette slot; colour follows the entity
+
+function classColor(cls) {
+  if (!classSlot.has(cls)) classSlot.set(cls, classSlot.size + 1);
+  const slot = classSlot.get(cls);
+  return slot <= 8 ? `var(--series-${slot})` : "var(--other)";
+}
+
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtInt = (v) => Math.round(v).toLocaleString("en-US");
+function fmtCompact(v) {
+  const a = Math.abs(v);
+  if (a >= 1e9) return (v / 1e9).toFixed(1) + "B";
+  if (a >= 1e6) return (v / 1e6).toFixed(1) + "M";
+  if (a >= 1e3) return (v / 1e3).toFixed(1) + "K";
+  return fmtInt(v);
+}
+const pct = (v) => (v * 100).toFixed(1) + "%";
+const fmtTick = (v) => fmtCompact(v).replace(/\.0(?=[KMB]?$)/, "");
+const tickCount = (plotW) => (plotW < 200 ? 2 : plotW < 320 ? 3 : 4);
+
+function setStatus(msg) { $("status").textContent = msg; }
+function showError(msg) { const e = $("error"); e.textContent = msg || ""; e.classList.toggle("show", !!msg); }
+
+// ---------- data loading ----------
+async function loadSample() {
+  const r = await fetch("/api/sample");
+  if (!r.ok) { showError("Sample portfolio not available."); return; }
+  setPortfolio(await r.json());
+}
+
+function setPortfolio(p) {
+  portfolio = p;
+  p.assets.forEach((a) => classColor(a.asset_class));
+  renderInputs();
+  runOptimise();
+}
+
+let timer = null;
+function scheduleOptimise() { clearTimeout(timer); timer = setTimeout(runOptimise, 350); }
+
+async function runOptimise() {
+  if (!portfolio) return;
+  setStatus("Optimising…");
+  try {
+    const r = await fetch("/api/optimise", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(portfolio) });
+    const body = await r.json();
+    if (!r.ok) { showError(body.error || "Optimisation failed"); setStatus(""); return; }
+    showError("");
+    results = body;
+    renderResults();
+    setStatus("Updated " + new Date().toLocaleTimeString());
+  } catch (e) {
+    showError("Could not reach the optimiser: " + e.message);
+    setStatus("");
+  }
+}
+
+// ---------- CSV ----------
+function parseCSV(text) {
+  const rows = []; let row = [], cell = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"' && text[i + 1] === '"') { cell += '"'; i++; }
+      else if (c === '"') q = false;
+      else cell += c;
+    } else if (c === '"') q = true;
+    else if (c === ",") { row.push(cell); cell = ""; }
+    else if (c === "\n" || c === "\r") {
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      row.push(cell); cell = "";
+      if (row.some((x) => x.trim() !== "")) rows.push(row);
+      row = [];
+    } else cell += c;
+  }
+  row.push(cell);
+  if (row.some((x) => x.trim() !== "")) rows.push(row);
+  return rows;
+}
+
+function assetsFromCSV(text) {
+  const rows = parseCSV(text);
+  if (rows.length < 2) throw new Error("CSV has no data rows");
+  const head = rows[0].map((h) => h.trim().toLowerCase());
+  for (const req of ["id", "asset_class", "currency", "market_value"]) {
+    if (!head.includes(req)) throw new Error(`CSV is missing column "${req}"`);
+  }
+  return rows.slice(1).map((r, n) => {
+    const get = (k) => { const i = head.indexOf(k); return i < 0 ? "" : (r[i] ?? "").trim(); };
+    const mv = Number(get("market_value").replace(/,/g, ""));
+    if (!Number.isFinite(mv)) throw new Error(`Row ${n + 2}: market_value is not a number`);
+    const a = { id: get("id"), asset_class: get("asset_class"), currency: get("currency"), market_value: mv };
+    const cost = get("cost_bps"); if (cost !== "") a.cost_bps = Number(cost);
+    if (get("issuer")) a.issuer = get("issuer");
+    if (get("rating")) a.rating = get("rating");
+    return a;
+  });
+}
+
+function download(name, text, type) {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const a = Object.assign(document.createElement("a"), { href: url, download: name });
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ---------- tooltip ----------
+const tip = $("tooltip");
+function showTip(evt, html) {
+  tip.innerHTML = html; tip.style.display = "block";
+  const pad = 14, w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = evt.clientX + pad, y = evt.clientY + pad;
+  if (x + w > innerWidth - 8) x = evt.clientX - w - pad;
+  if (y + h > innerHeight - 8) y = evt.clientY - h - pad;
+  tip.style.left = Math.max(8, x) + "px"; tip.style.top = Math.max(8, y) + "px";
+}
+function hideTip() { tip.style.display = "none"; }
+function bindTip(el, html) {
+  el.addEventListener("mousemove", (e) => showTip(e, html));
+  el.addEventListener("mouseleave", hideTip);
+}
+
+// ---------- SVG helpers ----------
+function svgEl(tag, attrs, parent) {
+  const el = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs || {})) el.setAttribute(k, v);
+  if (parent) parent.appendChild(el);
+  return el;
+}
+// Horizontal bar, square at the baseline and (optionally) rounded at the data end.
+function barPath(x, y, w, h, r) {
+  r = Math.min(r, w, h / 2);
+  if (r <= 0) return `M${x},${y}h${w}v${h}h${-w}Z`;
+  return `M${x},${y}h${w - r}a${r},${r} 0 0 1 ${r},${r}v${h - 2 * r}a${r},${r} 0 0 1 ${-r},${r}h${-(w - r)}Z`;
+}
+function niceMax(v) {
+  if (v <= 0) return 1;
+  const p = Math.pow(10, Math.floor(Math.log10(v)));
+  for (const m of [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]) if (m * p >= v) return m * p;
+  return 10 * p;
+}
+function measure(text) {
+  const c = measure.c || (measure.c = document.createElement("canvas").getContext("2d"));
+  c.font = '12px system-ui, -apple-system, "Segoe UI", sans-serif';
+  return c.measureText(text).width;
+}
+
+// ---------- charts ----------
+function renderRequirementChart() {
+  const host = $("chart-req"); host.innerHTML = "";
+  const assetsById = Object.fromEntries(portfolio.assets.map((a) => [a.id, a]));
+  const reqs = portfolio.requirements;
+  const allocs = results.optimised.allocations;
+  const classes = [...classSlot.keys()].filter((c) => allocs.some((a) => assetsById[a.asset_id]?.asset_class === c));
+
+  $("legend-req").innerHTML =
+    classes.map((c) => `<span><i style="background:${classColor(c)}"></i>${esc(c)}</span>`).join("") +
+    `<span><i class="marker"></i>Required</span>`;
+
+  const labelW = Math.min(150, Math.max(...reqs.map((r) => measure(r.id))) + 12);
+  const width = host.clientWidth || 520, valueW = 96;
+  const plotW = Math.max(120, width - labelW - valueW);
+  const band = 44, barH = 20, top = 8, axisH = 22;
+  const height = top + reqs.length * band + axisH;
+  const covered = (rid) => allocs.filter((a) => a.requirement_id === rid).reduce((s, a) => s + a.collateral_value, 0);
+  const max = niceMax(Math.max(...reqs.map((r) => Math.max(r.amount, covered(r.id)))));
+  const sx = (v) => labelW + (v / max) * plotW;
+
+  const svg = svgEl("svg", { class: "chart", viewBox: `0 0 ${width} ${height}`, height, role: "img", "aria-label": "Collateral posted per requirement by asset class" }, host);
+
+  const ticks = tickCount(plotW);
+  for (let i = 0; i <= ticks; i++) {
+    const v = (max / ticks) * i, x = sx(v);
+    svgEl("line", { x1: x, x2: x, y1: top - 4, y2: top + reqs.length * band - (band - barH) / 2 + 4, stroke: i === 0 ? "var(--axis)" : "var(--grid)", "stroke-width": 1 }, svg);
+    svgEl("text", { x, y: height - 6, "text-anchor": "middle", class: "tick" }, svg).textContent = fmtTick(v);
+  }
+
+  reqs.forEach((r, i) => {
+    const y = top + i * band + (band - barH) / 2;
+    const ly = y + barH / 2 + 4;
+    svgEl("text", { x: 0, y: ly, class: "ink" }, svg).textContent = r.id;
+
+    const mine = allocs.filter((a) => a.requirement_id === r.id);
+    const byClass = classes.map((c) => {
+      const items = mine.filter((a) => assetsById[a.asset_id]?.asset_class === c);
+      return { cls: c, items, value: items.reduce((s, a) => s + a.collateral_value, 0) };
+    }).filter((g) => g.value > 0);
+
+    let x = sx(0);
+    byClass.forEach((g, k) => {
+      const last = k === byClass.length - 1;
+      const w = Math.max(1, sx(g.value) - sx(0) - (last ? 0 : 2));
+      const seg = svgEl("path", { d: barPath(x, y, w, barH, last ? 4 : 0), fill: classColor(g.cls), class: "seg" }, svg);
+      const rows = g.items.sort((a, b) => b.collateral_value - a.collateral_value)
+        .map((a) => `<div class="row"><span>${esc(a.asset_id)}</span><span>${fmtCompact(a.collateral_value)}</span></div>`).join("");
+      bindTip(seg, `<b>${esc(r.id)} · ${esc(g.cls)}</b><div class="row"><span>Collateral value</span><span>${fmtCompact(g.value)}</span></div>
+        <div class="row"><span>Share of requirement</span><span>${pct(r.amount ? g.value / r.amount : 0)}</span></div><hr style="border:0;border-top:1px solid var(--grid);margin:6px 0">${rows}`);
+      x += w + (last ? 0 : 2);
+    });
+
+    const mx = sx(r.amount);
+    svgEl("line", { x1: mx, x2: mx, y1: y - 5, y2: y + barH + 5, stroke: "var(--text-primary)", "stroke-width": 2 }, svg);
+
+    const cov = covered(r.id);
+    const endX = Math.max(sx(cov), mx) + 8;
+    const short = r.amount - cov > 1e-6 * Math.max(1, r.amount);
+    svgEl("text", { x: endX, y: ly, class: "ink" }, svg).textContent = short ? `${pct(cov / r.amount)} covered` : fmtCompact(cov);
+  });
+}
+
+function renderInventoryChart() {
+  const host = $("chart-inv"); host.innerHTML = "";
+  const used = {};
+  results.optimised.allocations.forEach((a) => { used[a.asset_id] = (used[a.asset_id] || 0) + a.market_value; });
+  const assets = portfolio.assets;
+  const labelW = Math.min(160, Math.max(...assets.map((a) => measure(a.id))) + 12);
+  const width = host.clientWidth || 520, valueW = 64;
+  const plotW = Math.max(120, width - labelW - valueW);
+  const band = 30, barH = 14, top = 4, axisH = 22;
+  const height = top + assets.length * band + axisH;
+  const max = niceMax(Math.max(...assets.map((a) => a.market_value)));
+  const sx = (v) => labelW + (v / max) * plotW;
+
+  const svg = svgEl("svg", { class: "chart", viewBox: `0 0 ${width} ${height}`, height, role: "img", "aria-label": "Pledged versus available market value per asset" }, host);
+  const ticks = tickCount(plotW);
+  for (let i = 0; i <= ticks; i++) {
+    const v = (max / ticks) * i, x = sx(v);
+    svgEl("line", { x1: x, x2: x, y1: top, y2: top + assets.length * band, stroke: i === 0 ? "var(--axis)" : "var(--grid)", "stroke-width": 1 }, svg);
+    svgEl("text", { x, y: height - 6, "text-anchor": "middle", class: "tick" }, svg).textContent = fmtTick(v);
+  }
+
+  assets.forEach((a, i) => {
+    const y = top + i * band + (band - barH) / 2, ly = y + barH / 2 + 4;
+    const u = used[a.id] || 0, share = a.market_value ? u / a.market_value : 0;
+    svgEl("text", { x: 0, y: ly, class: "ink" }, svg).textContent = a.id;
+    const g = svgEl("g", { class: "seg" }, svg);
+    svgEl("rect", { x: sx(0), y: y - 6, width: Math.max(4, sx(a.market_value) - sx(0)), height: barH + 12, fill: "transparent" }, g);
+    svgEl("path", { d: barPath(sx(0), y, Math.max(1, sx(a.market_value) - sx(0)), barH, 4), fill: "var(--track)" }, g);
+    if (u > 0) svgEl("path", { d: barPath(sx(0), y, Math.max(1, sx(u) - sx(0)), barH, 4), fill: "var(--series-1)" }, g);
+    svgEl("text", { x: sx(a.market_value) + 8, y: ly, class: "tick" }, svg).textContent = share > 0 ? pct(share) : "unused";
+    bindTip(g, `<b>${esc(a.id)}</b> <span class="muted">${esc(a.asset_class)} · ${esc(a.currency)}</span>
+      <div class="row"><span>Pledged</span><span>${fmtInt(u)}</span></div>
+      <div class="row"><span>Available</span><span>${fmtInt(a.market_value)}</span></div>
+      <div class="row"><span>Free</span><span>${fmtInt(a.market_value - u)}</span></div>
+      <div class="row"><span>Cost</span><span>${a.cost_bps ?? 0} bps</span></div>`);
+  });
+}
+
+// ---------- tiles & tables ----------
+const ICON_OK = `<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="8" fill="var(--good)"/><path d="M4.5 8.2l2.3 2.3 4.7-4.9" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const ICON_BAD = `<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="8" fill="var(--critical)"/><path d="M8 4.2v4.6M8 11.3v.2" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>`;
+
+function renderTiles() {
+  const ccy = results.base_currency, o = results.optimised, g = results.greedy;
+  const saving = g.total_annual_cost - o.total_annual_cost;
+  const shortO = Object.keys(o.shortfalls), shortG = Object.keys(g.shortfalls);
+  const savingDelta = g.total_annual_cost > 0 ? `${pct(saving / g.total_annual_cost)} lower than greedy` : "";
+  const coverage = shortO.length
+    ? `<div class="statusline">${ICON_BAD}<span>Shortfall on ${shortO.length} requirement${shortO.length > 1 ? "s" : ""}</span></div>
+       <div class="delta">${shortO.map((id) => `${esc(id)}: ${fmtCompact(o.shortfalls[id])} ${esc(ccy)} uncovered`).join("<br>")}</div>`
+    : `<div class="statusline">${ICON_OK}<span>All covered</span></div><div class="delta">${portfolio.requirements.length} requirements met</div>`;
+  $("tiles").innerHTML = `
+    <div class="tile hero"><div class="label">Annual cost (optimised)</div><div class="value">${fmtCompact(o.total_annual_cost)}</div><div class="delta">${esc(ccy)} per year</div></div>
+    <div class="tile"><div class="label">Annual saving vs greedy</div><div class="value">${fmtCompact(saving)}</div><div class="delta ${saving > 0.5 ? "good" : ""}">${savingDelta}</div></div>
+    <div class="tile"><div class="label">Greedy cheapest-to-deliver cost</div><div class="value">${fmtCompact(g.total_annual_cost)}</div><div class="delta">${shortG.length ? "with shortfall on " + shortG.map(esc).join(", ") : esc(ccy) + " per year"}</div></div>
+    <div class="tile"><div class="label">Coverage</div><div class="value" style="font-size:18px">${coverage}</div></div>`;
+}
+
+function renderAllocationTable() {
+  const assetsById = Object.fromEntries(portfolio.assets.map((a) => [a.id, a]));
+  const rows = [...results.optimised.allocations].sort((a, b) =>
+    a.requirement_id.localeCompare(b.requirement_id) || b.market_value - a.market_value);
+  $("tbl-alloc").innerHTML = `<thead><tr><th>Requirement</th><th>Asset</th><th>Class</th><th class="num">Market value</th><th class="num">Haircut</th><th class="num">Collateral value</th><th class="num">Annual cost</th></tr></thead>
+    <tbody>${rows.map((a) => {
+      const cls = assetsById[a.asset_id]?.asset_class ?? "";
+      return `<tr><td>${esc(a.requirement_id)}</td><td>${esc(a.asset_id)}</td>
+        <td><span class="chip"><span class="swatch" style="background:${classColor(cls)}"></span>${esc(cls)}</span></td>
+        <td class="num">${fmtInt(a.market_value)}</td><td class="num">${pct(a.haircut)}</td>
+        <td class="num">${fmtInt(a.collateral_value)}</td><td class="num">${fmtInt(a.annual_cost)}</td></tr>`;
+    }).join("")}</tbody>`;
+}
+
+function renderInputs() {
+  $("tbl-assets").innerHTML = `<thead><tr><th>Asset</th><th>Class</th><th>Ccy</th><th>Rating</th><th class="num">Market value</th><th class="num">Cost bps</th></tr></thead>
+    <tbody>${portfolio.assets.map((a, i) => `<tr><td>${esc(a.id)}</td>
+      <td><span class="chip"><span class="swatch" style="background:${classColor(a.asset_class)}"></span>${esc(a.asset_class)}</span></td>
+      <td>${esc(a.currency)}</td><td>${esc(a.rating ?? "–")}</td>
+      <td class="num"><input data-kind="asset" data-i="${i}" data-field="market_value" value="${fmtInt(a.market_value)}" inputmode="decimal" aria-label="${esc(a.id)} market value"></td>
+      <td class="num"><input class="short" data-kind="asset" data-i="${i}" data-field="cost_bps" value="${a.cost_bps ?? 0}" inputmode="decimal" aria-label="${esc(a.id)} cost bps"></td></tr>`).join("")}</tbody>`;
+
+  $("tbl-reqs").innerHTML = `<thead><tr><th>Requirement</th><th>Ccy</th><th class="num">Amount</th><th class="num">FX haircut</th></tr></thead>
+    <tbody>${portfolio.requirements.map((r, i) => `<tr><td>${esc(r.id)}</td><td>${esc(r.currency)}</td>
+      <td class="num"><input data-kind="req" data-i="${i}" data-field="amount" value="${fmtInt(r.amount)}" inputmode="decimal" aria-label="${esc(r.id)} amount"></td>
+      <td class="num">${pct(r.fx_haircut ?? 0.08)}</td></tr>`).join("")}</tbody>`;
+
+  $("tbl-elig").innerHTML = `<thead><tr><th>Requirement</th><th>Class</th><th class="num">Haircut</th><th>Min rating</th><th>Currencies</th></tr></thead>
+    <tbody>${portfolio.requirements.flatMap((r) => r.eligibility.map((e) => `<tr><td>${esc(r.id)}</td><td>${esc(e.asset_class)}</td>
+      <td class="num">${pct(e.haircut)}</td><td>${esc(e.min_rating ?? "–")}</td><td>${esc((e.currencies || ["any"]).join(", "))}</td></tr>`)).join("")}</tbody>`;
+}
+
+function renderResults() {
+  renderTiles();
+  renderRequirementChart();
+  renderInventoryChart();
+  renderAllocationTable();
+}
+
+// ---------- events ----------
+document.addEventListener("input", (e) => {
+  const t = e.target;
+  if (!t.dataset || !t.dataset.kind) return;
+  const v = Number(String(t.value).replace(/,/g, ""));
+  if (!Number.isFinite(v) || v < 0) { t.style.borderColor = "var(--critical)"; return; }
+  t.style.borderColor = "";
+  const list = t.dataset.kind === "asset" ? portfolio.assets : portfolio.requirements;
+  list[Number(t.dataset.i)][t.dataset.field] = v;
+  scheduleOptimise();
+});
+
+$("run").addEventListener("click", runOptimise);
+$("load-sample").addEventListener("click", loadSample);
+$("upload-json").addEventListener("change", async (e) => {
+  const f = e.target.files[0]; e.target.value = "";
+  if (!f) return;
+  try { setPortfolio(JSON.parse(await f.text())); }
+  catch (err) { showError("Could not read JSON: " + err.message); }
+});
+$("upload-csv").addEventListener("change", async (e) => {
+  const f = e.target.files[0]; e.target.value = "";
+  if (!f) return;
+  if (!portfolio) { showError("Load a portfolio first: the CSV replaces only the inventory."); return; }
+  try { setPortfolio({ ...portfolio, assets: assetsFromCSV(await f.text()) }); }
+  catch (err) { showError("Could not read CSV: " + err.message); }
+});
+$("dl-json").addEventListener("click", () => portfolio && download("portfolio.json", JSON.stringify(portfolio, null, 2), "application/json"));
+$("dl-csv").addEventListener("click", () => {
+  if (!results) return;
+  const head = "requirement_id,asset_id,market_value,haircut,collateral_value,annual_cost";
+  const q = (s) => /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  const lines = results.optimised.allocations.map((a) =>
+    [q(a.requirement_id), q(a.asset_id), a.market_value.toFixed(2), a.haircut.toFixed(4), a.collateral_value.toFixed(2), a.annual_cost.toFixed(2)].join(","));
+  download("allocation.csv", [head, ...lines].join("\n") + "\n", "text/csv");
+});
+
+let resizeTimer = null;
+addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => { if (results) { renderRequirementChart(); renderInventoryChart(); } }, 150);
+});
+
+loadSample();
+</script>
+</body>
+</html>

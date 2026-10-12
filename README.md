@@ -36,6 +36,25 @@ pytest
 
 The exit code is `0` when every requirement is covered, `1` on a shortfall and `2` on bad input.
 
+## Web dashboard
+
+```bash
+collateral-opt-web            # or: python -m collateral_opt.web --port 8000
+```
+
+Open http://127.0.0.1:8000. The dashboard loads the sample portfolio. From there you can:
+
+- see the annual cost, the saving against the greedy approach and the coverage status
+- view stacked bars of the collateral posted per requirement by asset class (hover for the assets)
+  and how much of each inventory position is pledged
+- edit market values, costs or requirement amounts inline; it re-optimises automatically
+- upload a full portfolio as JSON, or replace just the inventory with a CSV that has the columns
+  `id, asset_class, currency, market_value[, cost_bps, issuer, rating]`
+- download the allocation as CSV or the edited portfolio as JSON
+
+It uses only the Python standard library HTTP server, so it needs no extra dependencies. It is
+meant to run locally and has no authentication.
+
 ## Input format
 
 ```jsonc

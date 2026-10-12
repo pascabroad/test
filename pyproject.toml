@@ -15,6 +15,10 @@ dev = ["pytest>=7"]
 
 [project.scripts]
 collateral-opt = "collateral_opt.cli:main"
+collateral-opt-web = "collateral_opt.web:main"
 
 [tool.setuptools]
 packages = ["collateral_opt"]
+
+[tool.setuptools.package-data]
+collateral_opt = ["static/*"]
